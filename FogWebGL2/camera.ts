@@ -111,8 +111,8 @@ class Camera {
         return this.view;
     }
 
-    public GetProjectionMatrix() : Float32Array {
-        this.proj = mat4.perspective(this.proj, 45.0, 800.0/600.0, 0.1, 1000.0);
+    public GetProjectionMatrix(w, h) : Float32Array {
+        this.proj = mat4.perspective(this.proj, 45.0, (w*1.0)/(h*1.0), 0.1, 1000.0);
         return this.proj;
     }
 }

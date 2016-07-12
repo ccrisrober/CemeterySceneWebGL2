@@ -64,19 +64,20 @@ window.onload = () => {
     program.addAttributes(["position", "normal", "texCoord"]);
     console.log(program.attribLocations);
 
-    program.addUniforms(["proj", "view", "model", "viewPos", "minMaxDist", "fogType", "fogDensity", "texSampler"]);
+    program.addUniforms(["proj", "view", "model", "viewPos", "minMaxDist", "fogType", "fogDensity", "texSampler", "LightPosition", "AmbientStrength"]);
     program.addUniforms(["offset"]);
 
     program.use();
 
     var view = camera.GetViewMatrix();
-    var projection = camera.GetProjectionMatrix();
+    var projection = camera.GetProjectionMatrix(canvas.width, canvas.height);
     var model = mat4.create();
     var Config = function () {
         this.MinDist = 1.0;
         this.MaxDist = 75.0;
-        this.FogType = 0;
+        this.FogType = -1;
         this.FogDensity = 0.04;
+        this.AmbientStrength = 0.1;
     };
 
     var config = new Config();
@@ -84,12 +85,16 @@ window.onload = () => {
     gui.add(config, "MinDist", 1.0, 25.0);
     gui.add(config, "MaxDist", 25.0, 150.0);
     gui.add(config, "FogDensity", 0.01, 0.1);
-    gui.add(config, 'FogType', { Normal: 0, Exp: 1, Exp2: 2 });
+    gui.add(config, 'FogType', { Normal: -1, Linear: 0, Exp: 1, Exp2: 2 });
+    gui.add(config, "AmbientStrength", 0.01, 0.5);
+
+    var lightPosition = [0.0, 25.0, 0.0];
 
     gl.uniformMatrix4fv(program.uniformLocations['view'], false, view);
     gl.uniformMatrix4fv(program.uniformLocations['proj'], false, projection);
     gl.uniform3fv(program.uniformLocations["viewPos"], camera.position);
     gl.uniform2f(program.uniformLocations["minMaxDist"], config.MinDist, config.MaxDist);
+    gl.uniform3f(program.uniformLocations["LightPosition"], lightPosition[0], lightPosition[1], lightPosition[2]);
 
     var identityMatrix = mat4.create();
     mat4.identity(identityMatrix);
@@ -144,6 +149,7 @@ window.onload = () => {
     offsets = remRandom(offsets, offsets.length - randInt(offsets.length/2, 0));
 
     var deltaTime = 0.0;
+    var lightRot = 0.0;
     function updateMatrices() {
         var currentTime = Date.now();
         var timeElapsed = currentTime - lastTime;
@@ -153,6 +159,7 @@ window.onload = () => {
 
         lastTime = currentTime;
         angle += timeElapsed * 0.001;
+        lightRot += timeElapsed * 0.001;
         if (angle >= 180.0) {
             angle = -180.0;
         }
@@ -161,6 +168,7 @@ window.onload = () => {
         mat4.rotateY(model, model, glMatrix.toRadian(90.0));
         mat4.scale(model, model, vec3.fromValues(0.035, 0.035, 0.035));
     }
+    gl.viewport(0, 0, canvas.width, canvas.height);
 
     var render = function (time: number) {
         updateMatrices();
@@ -170,16 +178,32 @@ window.onload = () => {
         gl.uniform2f(program.uniformLocations["minMaxDist"], config.MinDist, config.MaxDist);
         gl.uniform1i(program.uniformLocations["fogType"], config.FogType);
         gl.uniform1f(program.uniformLocations["fogDensity"], config.FogDensity);
+        gl.uniform1f(program.uniformLocations["AmbientStrength"], config.AmbientStrength);
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, marmolTex);
         gl.uniform1i(program.uniformLocations["texSampler"], 0);
+
+        lightPosition[0] += Math.cos(lightRot) * 6.0;
+        //lightPosition[1] += Math.cos(lightRot) * 6.0;
+        lightPosition[2] += Math.sin(lightRot) * 6.0;
+
+        gl.uniform3f(program.uniformLocations["LightPosition"], lightPosition[0], lightPosition[1], lightPosition[2]);
 
         for (var i = 0; i < offsets.length; i++) {
             gl.uniform3fv(program.uniformLocations["offset"], offsets[i]);
             dragon.render();
         }
     }
+
+    //window.addEventListener('resize', resizeCanvas, false);
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    //resizeCanvas();
 
     var renderLoop = (dt: number) => {
         stats.begin();
@@ -239,7 +263,7 @@ window.onload = () => {
                 break;
         }
         view = camera.GetViewMatrix();
-        projection = camera.GetProjectionMatrix();
+        projection = camera.GetProjectionMatrix(canvas.width, canvas.height);
 
         gl.uniformMatrix4fv(program.uniformLocations['view'], false, view);
         gl.uniformMatrix4fv(program.uniformLocations['proj'], false, projection);
