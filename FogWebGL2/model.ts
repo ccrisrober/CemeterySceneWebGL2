@@ -12,9 +12,8 @@
         gl.bindVertexArray(null);
     }
     public renderArrayInstance(numInstances) {
-
         gl.bindVertexArray(this.vao);
-        gl.drawArraysInstanced(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 100);
+        gl.drawElementsInstanced(gl.TRIANGLES, this.indices.length, gl.UNSIGNED_SHORT, 100);
         gl.bindVertexArray(null);
     }
     private createBuffer(data) {

@@ -52,9 +52,31 @@ window.onload = () => {
     resetCamera();
 
     var dragon: Model = new Model("graveyard.json");
+    var lightModel: Model = new Model("sphere.json");
+    var planeModel: Model = new Model("plane.json");
     console.log("FINISH");
 
     gl.enable(gl.DEPTH_TEST);
+
+    var program3 = new ShaderProgram();
+    program3.addShader("shaders/ground.vert", gl.VERTEX_SHADER, mode.read_file);
+    program3.addShader("shaders/ground.frag", gl.FRAGMENT_SHADER, mode.read_file);
+    program3.compile_and_link();
+
+    program3.addAttributes(["position", "normal", "texCoord"]);
+    console.log(program3.attribLocations);
+
+    program3.addUniforms(["proj", "view", "model", "texSampler"]);
+
+    var program2 = new ShaderProgram();
+    program2.addShader("shaders/light.vert", gl.VERTEX_SHADER, mode.read_file);
+    program2.addShader("shaders/light.frag", gl.FRAGMENT_SHADER, mode.read_file);
+    program2.compile_and_link();
+
+    program2.addAttributes(["position"]);
+    console.log(program2.attribLocations);
+
+    program2.addUniforms(["proj", "view", "model"]);
 
     var program = new ShaderProgram();
     program.addShader("shaders/shader.vert", gl.VERTEX_SHADER, mode.read_file);
@@ -65,6 +87,7 @@ window.onload = () => {
     console.log(program.attribLocations);
 
     program.addUniforms(["proj", "view", "model", "viewPos", "minMaxDist", "fogType", "fogDensity", "texSampler", "LightPosition", "AmbientStrength"]);
+    program.addUniforms(["Rim", "OnlyRim"]);
     program.addUniforms(["offset"]);
 
     program.use();
@@ -78,23 +101,29 @@ window.onload = () => {
         this.FogType = -1;
         this.FogDensity = 0.04;
         this.AmbientStrength = 0.1;
+        this.Rim = true;
+        this.OnlyRim = false;
     };
 
     var config = new Config();
     var gui = new dat.GUI();
     gui.add(config, "MinDist", 1.0, 25.0);
     gui.add(config, "MaxDist", 25.0, 150.0);
-    gui.add(config, "FogDensity", 0.01, 0.1);
+    gui.add(config, "FogDensity", 0.001, 0.04);
     gui.add(config, 'FogType', { Normal: -1, Linear: 0, Exp: 1, Exp2: 2 });
     gui.add(config, "AmbientStrength", 0.01, 0.5);
+    gui.add(config, "Rim", true);
+    gui.add(config, "OnlyRim", false);
 
-    var lightPosition = [0.0, 25.0, 0.0];
+    var lightPosition = [0.0, 15.0, 0.0];
 
     gl.uniformMatrix4fv(program.uniformLocations['view'], false, view);
     gl.uniformMatrix4fv(program.uniformLocations['proj'], false, projection);
     gl.uniform3fv(program.uniformLocations["viewPos"], camera.position);
     gl.uniform2f(program.uniformLocations["minMaxDist"], config.MinDist, config.MaxDist);
     gl.uniform3f(program.uniformLocations["LightPosition"], lightPosition[0], lightPosition[1], lightPosition[2]);
+    gl.uniform1i(program.uniformLocations["Rim"], config.Rim);
+    gl.uniform1i(program.uniformLocations["OnlyRim"], config.OnlyRim);
 
     var identityMatrix = mat4.create();
     mat4.identity(identityMatrix);
@@ -127,10 +156,12 @@ window.onload = () => {
     }
 
     var marmolTex = initTexture("marmol_2.jpg");
+    var groundTex = initTexture("seamless_dirt_ground_texture_by_hhh316-d4fon0w.jpg");
 
     var offsets = [];
-    for (var i = -5; i < 5; i++) {
-        for (var j = -5; j < 5; j++) {
+    var v = 15;
+    for (var i = -v; i < v; i++) {
+        for (var j = -v; j < v; j++) {
             offsets.push(vec3.fromValues(
                 100*i, 0.0, 100*j
             ));
@@ -146,7 +177,8 @@ window.onload = () => {
         while (a.length > newLength) a.splice(randInt(a.length - 1), 1);
         return a;
     }
-    offsets = remRandom(offsets, offsets.length - randInt(offsets.length/2, 0));
+    offsets = remRandom(offsets, offsets.length / 2 - offsets.length / 4);
+    //offsets = remRandom(offsets, offsets.length - randInt(offsets.length / 2, 0));
 
     var deltaTime = 0.0;
     var lightRot = 0.0;
@@ -163,7 +195,7 @@ window.onload = () => {
         if (angle >= 180.0) {
             angle = -180.0;
         }
-        mat4.translate(model, identityMatrix, vec3.fromValues(0.0, -1.0, 0.0));
+        mat4.translate(model, identityMatrix, vec3.fromValues(0.0, 0.0, 0.0));
         mat4.rotateY(model, model, 90.0 * Math.PI / 180);
         mat4.rotateY(model, model, glMatrix.toRadian(90.0));
         mat4.scale(model, model, vec3.fromValues(0.035, 0.035, 0.035));
@@ -174,19 +206,29 @@ window.onload = () => {
         updateMatrices();
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+
+
+        program.use();
+        gl.uniformMatrix4fv(program.uniformLocations['view'], false, view);
+        gl.uniformMatrix4fv(program.uniformLocations['proj'], false, projection);
+
+
+
         gl.uniformMatrix4fv(program.uniformLocations["model"], false, model);
         gl.uniform2f(program.uniformLocations["minMaxDist"], config.MinDist, config.MaxDist);
         gl.uniform1i(program.uniformLocations["fogType"], config.FogType);
         gl.uniform1f(program.uniformLocations["fogDensity"], config.FogDensity);
         gl.uniform1f(program.uniformLocations["AmbientStrength"], config.AmbientStrength);
+        gl.uniform1i(program.uniformLocations["Rim"], config.Rim);
+        gl.uniform1i(program.uniformLocations["OnlyRim"], config.OnlyRim);
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, marmolTex);
         gl.uniform1i(program.uniformLocations["texSampler"], 0);
 
-        lightPosition[0] += Math.cos(lightRot) * 6.0;
-        //lightPosition[1] += Math.cos(lightRot) * 6.0;
-        lightPosition[2] += Math.sin(lightRot) * 6.0;
+        lightPosition[0] += Math.cos(lightRot) * 0.6;
+        //lightPosition[1] += Math.cos(lightRot) * 0.1;
+        lightPosition[2] += Math.sin(lightRot) * 0.6;
 
         gl.uniform3f(program.uniformLocations["LightPosition"], lightPosition[0], lightPosition[1], lightPosition[2]);
 
@@ -194,6 +236,33 @@ window.onload = () => {
             gl.uniform3fv(program.uniformLocations["offset"], offsets[i]);
             dragon.render();
         }
+
+
+
+        program2.use();
+        gl.uniformMatrix4fv(program2.uniformLocations['view'], false, view);
+        gl.uniformMatrix4fv(program2.uniformLocations['proj'], false, projection);
+
+        mat4.translate(model, identityMatrix, vec3.fromValues(lightPosition[0], lightPosition[1], lightPosition[2]));
+        var lsize = 3.5;
+        mat4.scale(model, model, vec3.fromValues(lsize, lsize, lsize));
+        gl.uniformMatrix4fv(program2.uniformLocations["model"], false, model);
+        lightModel.render();
+
+        program3.use();
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, groundTex);
+        gl.uniform1i(program.uniformLocations["texSampler"], 0);
+
+        gl.uniformMatrix4fv(program3.uniformLocations['view'], false, view);
+        gl.uniformMatrix4fv(program3.uniformLocations['proj'], false, projection);
+        mat4.translate(model, identityMatrix, vec3.fromValues(0.0, 0.0, 0.0));
+        var lsize = 6.0;
+        mat4.scale(model, model, vec3.fromValues(lsize, lsize, lsize));
+        gl.uniformMatrix4fv(program3.uniformLocations["model"], false, model);
+        planeModel.render();
+
     }
 
     //window.addEventListener('resize', resizeCanvas, false);

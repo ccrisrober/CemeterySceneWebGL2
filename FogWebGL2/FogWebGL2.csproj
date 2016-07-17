@@ -36,6 +36,10 @@
   <ItemGroup>
     <Content Include="shaders\shader.frag" />
     <Content Include="shaders\shader.vert" />
+    <Content Include="shaders\ground.frag" />
+    <Content Include="shaders\ground.vert" />
+    <Content Include="shaders\light.frag" />
+    <Content Include="shaders\light.vert" />
     <None Include="web.Debug.config">
       <DependentUpon>web.config</DependentUpon>
     </None>

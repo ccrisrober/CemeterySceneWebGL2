@@ -4,6 +4,7 @@ precision mediump float;
 in vec3 outPosition;
 in vec3 outNormal;
 in vec2 outTexCoord;
+in vec3 lp;
 
 out vec4 outColor;
 
@@ -16,19 +17,22 @@ uniform float ambientStrength;
 
 uniform sampler2D texSampler;
 
-const vec3 LightColor = vec3(0.5, 0.5, 1.0);
+const vec3 LightColor = vec3(0.1, 0.2, 0.8);
 const float gamma = 1.0/0.6;
+
+uniform bool Rim;
+uniform bool OnlyRim;
 
 void main()
 {
-	vec3 color = texture(texSampler, outTexCoord).rgb;//vec3(outTexCoord, 0.0);
+	vec3 color = texture(texSampler, outTexCoord).rgb;
 
 	// Ambient factor
 	vec3 ambient = ambientStrength * LightColor;
 	
     // Diffuse factor
     vec3 norm = normalize(outNormal);
-    vec3 lightDir = normalize(LightPosition - outPosition);
+    vec3 lightDir = normalize(lp - outPosition);
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * LightColor;
     
@@ -47,7 +51,7 @@ void main()
 
 		float minDist = minMaxDist.x;
 		float maxDist = minMaxDist.y;
-		vec3 fogColor = vec3(0.0);
+		vec3 fogColor = vec3(1.0);
 
 		float fogFactor;
 		// Linear fog
@@ -69,11 +73,14 @@ void main()
 
 	//rim lighting
 	float rim = 1.0 - max(dot(viewDir, outNormal), 0.0);
-	rim = smoothstep(0.6, 1.0, rim);
-	vec3 finalRim = LightColor * vec3(rim, rim, rim);
-	outColor.rgb += finalRim;
+	rim = smoothstep(0.8, 1.0, rim);
+	vec3 finalRim = LightColor * vec3(rim);
+
+	if(OnlyRim) {
+		outColor.rgb = finalRim;
+	} else if(Rim) {
+		outColor.rgb += finalRim;
+	}
 	
-	outColor.rgb = vec3(pow(outColor.r, gamma),
-						pow(outColor.g, gamma),
-						pow(outColor.b, gamma));
+	//outColor.rgb = vec3(1.0);
 }
