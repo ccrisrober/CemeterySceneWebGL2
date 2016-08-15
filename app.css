@@ -5,3 +5,7 @@
 span {
     font-style: italic;
 }
+#stats {
+    position: absolute;
+    top: 8px;
+}
