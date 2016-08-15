@@ -22,7 +22,6 @@ Thumbs.db
 *.log
 *.map
 *.orig
-*.js
 !log4javascript.js
 !ECMA262-5.js
 *.map
